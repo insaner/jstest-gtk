@@ -89,6 +89,7 @@ set_property(TARGET jstest-gtk PROPERTY COMPILE_OPTIONS
   ${X11_CFLAGS_OTHER}
   ${WARNINGS_CXX_FLAGS})
 target_link_libraries(jstest-gtk
+  udev
   ${CMAKE_THREAD_LIBS_INIT}
   ${GTKMM_LIBRARIES}
   ${SIGCPP_LIBRARIES}

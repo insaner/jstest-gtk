@@ -104,7 +104,8 @@ Main::show_device_property_dialog(const std::string& filename, Gtk::Window* pare
   }
   else
   {
-    std::unique_ptr<Joystick> joystick(new Joystick(filename));
+    std::string js_id = get_js_id_from_filename(filename);
+    std::unique_ptr<Joystick> joystick(new Joystick(filename, js_id));
     std::unique_ptr<JoystickGui> gui(new JoystickGui(std::move(joystick), m_simple_ui, parent));
 
     JoystickTestWidget* widget = gui->get_test_widget();

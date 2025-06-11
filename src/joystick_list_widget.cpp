@@ -118,21 +118,25 @@ JoystickListWidget::on_refresh_button()
   {
     Gtk::ListStore::iterator it = device_list->append();
 
-	const Glib::ustring& name = i->name;
-	Glib::ustring icon_filename;
-	//Playstation icon for ps3 controller
-	if(name == "Sony PLAYSTATION(R)3 Controller") icon_filename = "PS3.png";
-	//Xbox icon for xbox controller
-	else if(name.find("X-Box") != Glib::ustring::npos) icon_filename = "xbox360_small.png";
-	//General icon for the rest
-	else icon_filename = "generic.png";
+    const Glib::ustring& name = i->name;
+    Glib::ustring icon_filename;
+    //Playstation icon for ps3 controller
+    if(name == "Sony PLAYSTATION(R)3 Controller" or i->usb_id == "054c:0268") icon_filename = "PS3.png";
+    //Xbox icon for xbox controller
+    else if(i->usb_id == "0810:0001") icon_filename = "ps2-dualshock2.png";
+    else if(name.find("X-Box") != Glib::ustring::npos) icon_filename = "xbox360_small.png";
+    //General icon for the rest
+    else icon_filename = "generic.png";
 
-	(*it)[DeviceListColumns::instance().icon] = Gdk::Pixbuf::create_from_file(Main::current()->get_data_directory() + icon_filename);
+    (*it)[DeviceListColumns::instance().icon] = Gdk::Pixbuf::create_from_file(Main::current()->get_data_directory() + icon_filename);
     (*it)[DeviceListColumns::instance().path] = i->filename;
 
     std::ostringstream out;
-	out << name << "\n"
+    out << name << "\n"
         << "Device: " << i->filename << "\n"
+        // << "js_id: " << i->js_id << "\n"
+        // << "usb_id: " << i->vendor_id << ":" << i->product_id << "\n"
+        << "usb_id: " << i->usb_id << "\n"
         << "Axes: " << i->axis_count << "\n"
         << "Buttons: " << i->button_count;
     (*it)[DeviceListColumns::instance().name] = out.str();

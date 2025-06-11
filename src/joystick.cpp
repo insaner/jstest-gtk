@@ -35,9 +35,20 @@
 
 #include "evdev_helper.hpp"
 #include "joystick.hpp"
+
+std::string get_js_id_from_filename(const std::string& filename)
+{
+  size_t pos = filename.find_last_of('/');
+  if (pos == std::string::npos)
+  {
+      return filename;  // No '/' found, return whole string
+  }
+  return filename.substr(pos + 1);
+}
 
-Joystick::Joystick(const std::string& filename_)
-  : filename(filename_)
+Joystick::Joystick(const std::string& filename_, const std::string& js_id_)
+  : filename(filename_),
+    js_id(js_id_)
 {
   if ((fd = open(filename.c_str(), O_RDONLY)) < 0)
   {
@@ -74,6 +85,32 @@ Joystick::Joystick(const std::string& filename_)
     }
 
     axis_state.resize(axis_count);
+    
+    struct udev *udev = udev_new();
+    if (udev) {
+      struct udev_device *dev = udev_device_new_from_subsystem_sysname(udev, "input", js_id.c_str());
+      dev = udev_device_get_parent_with_subsystem_devtype(dev, "usb", "usb_device");
+      if (!dev)
+      {
+        std::cout << filename.c_str() << std::endl;
+        std::cout << "udev: Unable to find parent USB device" << std::endl;
+        //return false;
+      }
+      else
+      {
+        vendor_id = udev_device_get_sysattr_value(dev, "idVendor");
+        product_id = udev_device_get_sysattr_value(dev, "idProduct");
+        usb_id = vendor_id + ":" + product_id;
+        // std::cout << js_id.c_str() << " = " << vendor_id << ":" << product_id << std::endl;
+        udev_device_unref(dev);
+      }
+      udev_unref(udev);
+    }
+    else
+    {
+        std::cout << "udev: Cannot create udev" << std::endl;
+        //return false;
+    }
   }
 
   orig_calibration_data = get_calibration();
@@ -153,18 +190,22 @@ Joystick::get_joysticks()
   {
     try
     {
-      std::ostringstream str;
-      str << "/dev/input/js" << i;
+      std::string js_id = std::string("js") + std::to_string(i);;
+      std::string str = std::string("/dev/input/") + js_id;
 
-      if (Glib::file_test(str.str(), Glib::FILE_TEST_EXISTS))
+      if (Glib::file_test(str, Glib::FILE_TEST_EXISTS))
       {
-      Joystick joystick(str.str());
+      Joystick joystick(str, js_id);
 
       joysticks.push_back(JoystickDescription(joystick.get_filename(),
                                               joystick.get_name(),
+                                              joystick.get_js_id(),
+                                              joystick.get_vendor_id(),
+                                              joystick.get_product_id(),
+                                              joystick.get_usb_id(),
                                               joystick.get_axis_count(),
                                               joystick.get_button_count()));
-    }
+      }
     }
     catch(std::exception& err)
     {
@@ -458,11 +499,15 @@ int main(int argc, char** argv)
   {
     Joystick joystick(argv[i]);
 
-    std::cout << "Filename: '" << joystick.get_filename() << "'\n";
-    std::cout << "Name:     '" << joystick.get_name() << "'\n";
-    std::cout << "Axis:     " << joystick.get_axis_count() << "\n";
-    std::cout << "Button:   " << joystick.get_button_count() << "\n";
-    std::cout << "Evdev:    '" << joystick.get_evdev() << "'\n";
+    std::cout << "Filename:   '" << joystick.get_filename() << "'\n";
+    std::cout << "Name:       '" << joystick.get_name() << "'\n";
+    std::cout << "js_id:      " << joystick.get_js_id() << "\n";
+    std::cout << "Vendor_id:  " << joystick.get_vendor_id() << "\n";
+    std::cout << "Product_id: " << joystick.get_product_id() << "\n";
+    std::cout << "usb_id:     " << joystick.get_usb_id() << "\n";
+    std::cout << "Axis:       " << joystick.get_axis_count() << "\n";
+    std::cout << "Button:     " << joystick.get_button_count() << "\n";
+    std::cout << "Evdev:      '" << joystick.get_evdev() << "'\n";
   }
   return 0;
 }

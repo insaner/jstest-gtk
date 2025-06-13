@@ -1,6 +1,7 @@
 /*
 **  jstest-gtk - A graphical joystick tester
 **  Copyright (C) 2009 Ingo Ruhnke <grumbel@gmail.com>
+**  Copyright (C) 2025 Raphael Rosch <jstest-bugs@insaner.com>
 **
 **  This program is free software: you can redistribute it and/or modify
 **  it under the terms of the GNU General Public License as published by
@@ -19,23 +20,20 @@
 #ifndef HEADER_JSTEST_GTK_BUTTON_WIDGET_HPP
 #define HEADER_JSTEST_GTK_BUTTON_WIDGET_HPP
 
-#include <gtkmm/drawingarea.h>
 
-class ButtonWidget : public Gtk::DrawingArea
-{
-private:
-  std::string name;
-  bool down;
 
+class ButtonWidget : public Gtk::ToggleButton {
 public:
-  ButtonWidget(int width, int height, const std::string& name);
+  ButtonWidget()
+  {
+    add_events(Gdk::BUTTON_PRESS_MASK);
+  }
 
-  bool on_draw(const Cairo::RefPtr<Cairo::Context>& cr) override;
-  void set_down(bool t);
-
-private:
-  ButtonWidget(const ButtonWidget&);
-  ButtonWidget& operator=(const ButtonWidget&);
+protected:
+  bool on_button_press_event(GdkEventButton* event) override
+  {
+    return true; // Prevent toggle
+  }
 };
 
 #endif

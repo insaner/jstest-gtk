@@ -1,6 +1,7 @@
 /*
 **  jstest-gtk - A graphical joystick tester
 **  Copyright (C) 2009 Ingo Ruhnke <grumbel@gmail.com>
+**  Copyright (C) 2025 Raphael Rosch <jstest-bugs@insaner.com>
 **
 **  This program is free software: you can redistribute it and/or modify
 **  it under the terms of the GNU General Public License as published by
@@ -29,6 +30,10 @@
 #include "joystick_map_widget.hpp"
 #include "joystick_calibration_widget.hpp"
 #include "joystick_test_widget.hpp"
+
+#include "joystick_config_files.hpp"
+
+
 
 JoystickTestWidget::JoystickTestWidget(JoystickGui& gui, Joystick& joystick_, bool simple_ui) :
   Gtk::Window(),
@@ -68,23 +73,35 @@ JoystickTestWidget::JoystickTestWidget(JoystickGui& gui, Joystick& joystick_, bo
   for(int i = 0; i < joystick.get_axis_count(); ++i)
   {
     std::ostringstream str;
-    str << "Axis " << i << ": ";
-    Gtk::Label& label = *Gtk::manage(new Gtk::Label(str.str()));
+    str << "Axis "  << i;
+    if (! joystick.js_cfg.axes[i].empty())
+    {
+      str << " [" << joystick.js_cfg.axes[i] << "] ";
+    }
+    str << ": ";
+    auto label = Gtk::manage(new Gtk::Label(str.str()));
+    label->set_xalign(0.0);
 
     Gtk::ProgressBar& progressbar = *Gtk::manage(new Gtk::ProgressBar());
     progressbar.set_fraction(0.5);
 
     //Each column must have at most 10 axes
-
     int x = (i/10)*2;
     int y = i%10;
 
-    axis_table.attach(label, x, x+1, y, y+1, Gtk::SHRINK, Gtk::FILL);
+    axis_table.attach(*label, x, x+1, y, y+1, Gtk::FILL, Gtk::SHRINK);
     axis_table.attach(progressbar, x+1, x+2, y, y+1, Gtk::FILL|Gtk::EXPAND, Gtk::EXPAND);
 
     axes.push_back(&progressbar);
   }
 
+  int width = 32;
+  int char_width = 10;
+  if (joystick.js_cfg.button_maxlen > 0)
+  {
+    width += joystick.js_cfg.button_maxlen * char_width;
+  }
+    
   for(int i = 0; i < joystick.get_button_count(); ++i)
   {
     int x = i / 10;
@@ -92,9 +109,19 @@ JoystickTestWidget::JoystickTestWidget(JoystickGui& gui, Joystick& joystick_, bo
 
     std::ostringstream str;
     str << i;
-    ButtonWidget& button = *Gtk::manage(new ButtonWidget(32, 32, str.str()));
-    button_table.attach(button, x, x+1, y, y+1, Gtk::EXPAND, Gtk::EXPAND);
-    buttons.push_back(&button);
+    if (! joystick.js_cfg.buttons[i].empty())
+    {
+      str << " - " << joystick.js_cfg.buttons[i];
+    }
+    auto* button = Gtk::manage(new ButtonWidget());
+    auto label = Gtk::manage(new Gtk::Label(str.str()));
+    label->set_xalign(0.0);
+    label->set_margin_start(10);
+    label->set_margin_end(10);
+
+    button->add(*label);
+    button_table.attach(*button, x, x+1, y, y+1, Gtk::EXPAND | Gtk::FILL, Gtk::EXPAND);
+    buttons.push_back(button);
   }
 
   alignment.set_padding(8, 8, 8, 8);
@@ -120,101 +147,120 @@ JoystickTestWidget::JoystickTestWidget(JoystickGui& gui, Joystick& joystick_, bo
   for(int i = 0; i < (int)joystick.get_axis_count(); ++i)
     axis_callbacks.push_back(sigc::signal<void, double>());
 
-  switch(joystick.get_axis_count())
+  m_verbose and std::cout << "joystick.get_name(): " << joystick.get_name() << std::endl;
+  m_verbose and std::cout << "joystick.get_usb_id(): " << joystick.get_usb_id() << std::endl;
+  m_verbose and std::cout << "joystick.get_axis_count(): " << joystick.get_axis_count() << std::endl;
+  
+  // Playstation 3 sixaxis Controller
+  if (joystick.get_usb_id() == "054c:0268")
   {
-  case 2: // Simple stick
-    stick_hbox.pack_start(stick1_widget, Gtk::PACK_EXPAND_PADDING);
-    axis_callbacks[0].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_x_axis));
-    axis_callbacks[1].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_y_axis));
-    break;
-
-  case 6: // Flightstick
-  {
-    Gtk::Table& table = *Gtk::manage(new Gtk::Table(2, 2));
-
-    table.attach(stick1_widget, 0, 1, 0, 1, Gtk::SHRINK, Gtk::SHRINK);
-    table.attach(rudder_widget,   0, 1, 1, 2, Gtk::SHRINK, Gtk::SHRINK);
-    table.attach(throttle_widget, 1, 2, 0, 1, Gtk::SHRINK, Gtk::SHRINK);
-
-    stick_hbox.pack_start(table, Gtk::PACK_EXPAND_PADDING);
-    stick_hbox.pack_start(stick3_widget, Gtk::PACK_EXPAND_PADDING);
-
-    axis_callbacks[0].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_x_axis));
-    axis_callbacks[1].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_y_axis));
-    axis_callbacks[2].connect(sigc::mem_fun(rudder_widget, &RudderWidget::set_pos));
-    axis_callbacks[3].connect(sigc::mem_fun(throttle_widget, &ThrottleWidget::set_pos));
-    axis_callbacks[4].connect(sigc::mem_fun(stick3_widget, &AxisWidget::set_x_axis));
-    axis_callbacks[5].connect(sigc::mem_fun(stick3_widget, &AxisWidget::set_y_axis));
-    break;
-  }
-    /*
-   // Dual Analog Gamepad
-
-    // FIXME: never reached as this is the same as Flightstick, no
-    // way to tell them apart from simple axis count
+    m_verbose and std::cout << "ps3 sixaxis found" << std::endl;
     stick_hbox.pack_start(stick1_widget, Gtk::PACK_EXPAND_PADDING);
     stick_hbox.pack_start(stick2_widget, Gtk::PACK_EXPAND_PADDING);
-    stick_hbox.pack_start(stick3_widget, Gtk::PACK_EXPAND_PADDING);
-
-    axis_callbacks[0].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_x_axis));
-    axis_callbacks[1].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_y_axis));
-    axis_callbacks[2].connect(sigc::mem_fun(stick2_widget, &AxisWidget::set_x_axis));
-    axis_callbacks[3].connect(sigc::mem_fun(stick2_widget, &AxisWidget::set_y_axis));
-    axis_callbacks[4].connect(sigc::mem_fun(stick3_widget, &AxisWidget::set_x_axis));
-    axis_callbacks[5].connect(sigc::mem_fun(stick3_widget, &AxisWidget::set_y_axis));
-    */
-
-  case 8: // Dual Analog Gamepad + Analog Trigger
-    stick_hbox.pack_start(stick1_widget, Gtk::PACK_EXPAND_PADDING);
-    stick_hbox.pack_start(stick2_widget, Gtk::PACK_EXPAND_PADDING);
-    stick_hbox.pack_start(stick3_widget, Gtk::PACK_EXPAND_PADDING);
     stick_hbox.pack_start(left_trigger_widget, Gtk::PACK_EXPAND_PADDING);
     stick_hbox.pack_start(right_trigger_widget, Gtk::PACK_EXPAND_PADDING);
-
-    axis_callbacks[0].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_x_axis));
-    axis_callbacks[1].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_y_axis));
-    axis_callbacks[2].connect(sigc::mem_fun(stick2_widget, &AxisWidget::set_x_axis));
-    axis_callbacks[3].connect(sigc::mem_fun(stick2_widget, &AxisWidget::set_y_axis));
-    axis_callbacks[6].connect(sigc::mem_fun(stick3_widget, &AxisWidget::set_x_axis));
-    axis_callbacks[7].connect(sigc::mem_fun(stick3_widget, &AxisWidget::set_y_axis));
-    axis_callbacks[4].connect(sigc::mem_fun(left_trigger_widget, &ThrottleWidget::set_pos));
-    axis_callbacks[5].connect(sigc::mem_fun(right_trigger_widget, &ThrottleWidget::set_pos));
-    break;
-
-
-  case 7: // Dual Analog Gamepad DragonRise Inc. Generic USB Joystick
-    stick_hbox.pack_start(stick1_widget, Gtk::PACK_EXPAND_PADDING);
-    stick_hbox.pack_start(stick2_widget, Gtk::PACK_EXPAND_PADDING);
-    stick_hbox.pack_start(stick3_widget, Gtk::PACK_EXPAND_PADDING);
 
     axis_callbacks[0].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_x_axis));
     axis_callbacks[1].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_y_axis));
     axis_callbacks[3].connect(sigc::mem_fun(stick2_widget, &AxisWidget::set_x_axis));
     axis_callbacks[4].connect(sigc::mem_fun(stick2_widget, &AxisWidget::set_y_axis));
-    axis_callbacks[5].connect(sigc::mem_fun(stick3_widget, &AxisWidget::set_x_axis));
-    axis_callbacks[6].connect(sigc::mem_fun(stick3_widget, &AxisWidget::set_y_axis));
-    break;
-
-  case 27: // Playstation 3 Controller
+    axis_callbacks[2].connect(sigc::mem_fun(left_trigger_widget, &ThrottleWidget::set_pos));
+    axis_callbacks[5].connect(sigc::mem_fun(right_trigger_widget, &ThrottleWidget::set_pos));
+  }
+  // Playstation 2 dualshock 2 Controller
+  else if (joystick.get_usb_id() == "0810:0001" or joystick.get_usb_id() == "0810:0003")
+  {
+    m_verbose and std::cout << "ps2 dualshock 2 found" << std::endl;
     stick_hbox.pack_start(stick1_widget, Gtk::PACK_EXPAND_PADDING);
     stick_hbox.pack_start(stick2_widget, Gtk::PACK_EXPAND_PADDING);
-    // Not using stick3 for now, as the dpad is 4 axis on the PS3, not 2 (one for each direction)
-    //stick_hbox.pack_start(stick3_widget, Gtk::PACK_EXPAND_PADDING);
     stick_hbox.pack_start(left_trigger_widget, Gtk::PACK_EXPAND_PADDING);
     stick_hbox.pack_start(right_trigger_widget, Gtk::PACK_EXPAND_PADDING);
 
     axis_callbacks[0].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_x_axis));
     axis_callbacks[1].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_y_axis));
-    axis_callbacks[2].connect(sigc::mem_fun(stick2_widget, &AxisWidget::set_x_axis));
-    axis_callbacks[3].connect(sigc::mem_fun(stick2_widget, &AxisWidget::set_y_axis));
-    //axis_callbacks[6].connect(sigc::mem_fun(stick3_widget, &AxisWidget::set_x_axis));
-    //axis_callbacks[7].connect(sigc::mem_fun(stick3_widget, &AxisWidget::set_y_axis));
-    axis_callbacks[12].connect(sigc::mem_fun(left_trigger_widget, &ThrottleWidget::set_pos));
-    axis_callbacks[13].connect(sigc::mem_fun(right_trigger_widget, &ThrottleWidget::set_pos));
-    break;
+    axis_callbacks[3].connect(sigc::mem_fun(stick2_widget, &AxisWidget::set_x_axis)); // NOTE inversion of R analog stick axes
+    axis_callbacks[2].connect(sigc::mem_fun(stick2_widget, &AxisWidget::set_y_axis)); // NOTE inversion of R analog stick axes
+  }
+  else
+  {
+    switch(joystick.get_axis_count())
+    {
+    case 2: // Simple stick
+      stick_hbox.pack_start(stick1_widget, Gtk::PACK_EXPAND_PADDING);
+      axis_callbacks[0].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_x_axis));
+      axis_callbacks[1].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_y_axis));
+      break;
 
-  default:
-    std::cout << "Warning: unknown joystick, not displaying graphical representation." << std::endl;
+    case 6: // Flightstick
+    {
+      Gtk::Table& table = *Gtk::manage(new Gtk::Table(2, 2));
+
+      table.attach(stick1_widget, 0, 1, 0, 1, Gtk::SHRINK, Gtk::SHRINK);
+      table.attach(rudder_widget,   0, 1, 1, 2, Gtk::SHRINK, Gtk::SHRINK);
+      table.attach(throttle_widget, 1, 2, 0, 1, Gtk::SHRINK, Gtk::SHRINK);
+
+      stick_hbox.pack_start(table, Gtk::PACK_EXPAND_PADDING);
+      stick_hbox.pack_start(stick3_widget, Gtk::PACK_EXPAND_PADDING);
+
+      axis_callbacks[0].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_x_axis));
+      axis_callbacks[1].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_y_axis));
+      axis_callbacks[2].connect(sigc::mem_fun(rudder_widget, &RudderWidget::set_pos));
+      axis_callbacks[3].connect(sigc::mem_fun(throttle_widget, &ThrottleWidget::set_pos));
+      axis_callbacks[4].connect(sigc::mem_fun(stick3_widget, &AxisWidget::set_x_axis));
+      axis_callbacks[5].connect(sigc::mem_fun(stick3_widget, &AxisWidget::set_y_axis));
+      break;
+    }
+      /*
+    // Dual Analog Gamepad
+
+      // FIXME: never reached as this is the same as Flightstick, no
+      // way to tell them apart from simple axis count
+      stick_hbox.pack_start(stick1_widget, Gtk::PACK_EXPAND_PADDING);
+      stick_hbox.pack_start(stick2_widget, Gtk::PACK_EXPAND_PADDING);
+      stick_hbox.pack_start(stick3_widget, Gtk::PACK_EXPAND_PADDING);
+
+      axis_callbacks[0].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_x_axis));
+      axis_callbacks[1].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_y_axis));
+      axis_callbacks[2].connect(sigc::mem_fun(stick2_widget, &AxisWidget::set_x_axis));
+      axis_callbacks[3].connect(sigc::mem_fun(stick2_widget, &AxisWidget::set_y_axis));
+      axis_callbacks[4].connect(sigc::mem_fun(stick3_widget, &AxisWidget::set_x_axis));
+      axis_callbacks[5].connect(sigc::mem_fun(stick3_widget, &AxisWidget::set_y_axis));
+      */
+
+    case 8: // Dual Analog Gamepad + Analog Trigger
+      stick_hbox.pack_start(stick1_widget, Gtk::PACK_EXPAND_PADDING);
+      stick_hbox.pack_start(stick2_widget, Gtk::PACK_EXPAND_PADDING);
+      stick_hbox.pack_start(stick3_widget, Gtk::PACK_EXPAND_PADDING);
+      stick_hbox.pack_start(left_trigger_widget, Gtk::PACK_EXPAND_PADDING);
+      stick_hbox.pack_start(right_trigger_widget, Gtk::PACK_EXPAND_PADDING);
+
+      axis_callbacks[0].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_x_axis));
+      axis_callbacks[1].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_y_axis));
+      axis_callbacks[2].connect(sigc::mem_fun(stick2_widget, &AxisWidget::set_x_axis));
+      axis_callbacks[3].connect(sigc::mem_fun(stick2_widget, &AxisWidget::set_y_axis));
+      axis_callbacks[6].connect(sigc::mem_fun(stick3_widget, &AxisWidget::set_x_axis));
+      axis_callbacks[7].connect(sigc::mem_fun(stick3_widget, &AxisWidget::set_y_axis));
+      axis_callbacks[4].connect(sigc::mem_fun(left_trigger_widget, &ThrottleWidget::set_pos));
+      axis_callbacks[5].connect(sigc::mem_fun(right_trigger_widget, &ThrottleWidget::set_pos));
+      break;
+
+
+    case 7: // Dual Analog Gamepad DragonRise Inc. Generic USB Joystick
+      stick_hbox.pack_start(stick1_widget, Gtk::PACK_EXPAND_PADDING);
+      stick_hbox.pack_start(stick2_widget, Gtk::PACK_EXPAND_PADDING);
+      stick_hbox.pack_start(stick3_widget, Gtk::PACK_EXPAND_PADDING);
+
+      axis_callbacks[0].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_x_axis));
+      axis_callbacks[1].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_y_axis));
+      axis_callbacks[3].connect(sigc::mem_fun(stick2_widget, &AxisWidget::set_x_axis));
+      axis_callbacks[4].connect(sigc::mem_fun(stick2_widget, &AxisWidget::set_y_axis));
+      axis_callbacks[5].connect(sigc::mem_fun(stick3_widget, &AxisWidget::set_x_axis));
+      axis_callbacks[6].connect(sigc::mem_fun(stick3_widget, &AxisWidget::set_y_axis));
+      break;
+
+    default:
+      std::cout << "Warning: unknown joystick, not displaying graphical representation." << std::endl;
+    }
   }
 
   if (!m_simple_ui)
@@ -252,9 +298,9 @@ void
 JoystickTestWidget::button_move(int number, bool value)
 {
   if (value)
-    buttons.at(number)->set_down(true);
+    buttons.at(number)->set_active(true);
   else
-    buttons.at(number)->set_down(false);
+    buttons.at(number)->set_active(false);
 }
 
 void

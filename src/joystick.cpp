@@ -1,6 +1,7 @@
 /*
 **  jstest-gtk - A graphical joystick tester
 **  Copyright (C) 2009 Ingo Ruhnke <grumbel@gmail.com>
+**  Copyright (C) 2025 Raphael Rosch <jstest-bugs@insaner.com>
 **
 **  This program is free software: you can redistribute it and/or modify
 **  it under the terms of the GNU General Public License as published by
@@ -36,7 +37,7 @@
 #include "evdev_helper.hpp"
 #include "joystick.hpp"
 
-std::string get_js_id_from_filename(const std::string& filename)
+std::string get_js_dev_id_from_filename(const std::string& filename)
 {
   size_t pos = filename.find_last_of('/');
   if (pos == std::string::npos)
@@ -103,6 +104,28 @@ Joystick::Joystick(const std::string& filename_, const std::string& js_id_)
         usb_id = vendor_id + ":" + product_id;
         // std::cout << js_id.c_str() << " = " << vendor_id << ":" << product_id << std::endl;
         udev_device_unref(dev);
+        
+        js_cfg = get_config_for_usb_id(usb_id);
+        
+        // set joystick type:
+        
+        // Playstation 3 sixaxis class
+        if (get_usb_id() == "054c:0268")
+        {
+          type = "ps3-sixaxis";
+        }
+        // Playstation 2 dualshock 2 Controller class
+        else if (get_usb_id() == "0810:0001"
+              or get_usb_id() == "0810:0003")
+        {
+          type = "ps2-dualshock2";
+        }
+        // Xbox360 Controller class
+        else if (get_usb_id() == "045e:028E"
+              or get_usb_id() == "0e6f:0213")
+        {
+          type = "xbox360";
+        }
       }
       udev_unref(udev);
     }
@@ -488,6 +511,7 @@ Joystick::get_evdev() const
 
   throw std::runtime_error("couldn't find evdev for " + filename);
 }
+
 
 #ifdef __TEST__
 
@@ -501,12 +525,12 @@ int main(int argc, char** argv)
 
     std::cout << "Filename:   '" << joystick.get_filename() << "'\n";
     std::cout << "Name:       '" << joystick.get_name() << "'\n";
-    std::cout << "js_id:      " << joystick.get_js_id() << "\n";
-    std::cout << "Vendor_id:  " << joystick.get_vendor_id() << "\n";
-    std::cout << "Product_id: " << joystick.get_product_id() << "\n";
-    std::cout << "usb_id:     " << joystick.get_usb_id() << "\n";
-    std::cout << "Axis:       " << joystick.get_axis_count() << "\n";
-    std::cout << "Button:     " << joystick.get_button_count() << "\n";
+    std::cout << "js_id:      "  << joystick.get_js_id() << "\n";
+    std::cout << "Vendor_id:  "  << joystick.get_vendor_id() << "\n";
+    std::cout << "Product_id: "  << joystick.get_product_id() << "\n";
+    std::cout << "usb_id:     "  << joystick.get_usb_id() << "\n";
+    std::cout << "Axis:       "  << joystick.get_axis_count() << "\n";
+    std::cout << "Button:     "  << joystick.get_button_count() << "\n";
     std::cout << "Evdev:      '" << joystick.get_evdev() << "'\n";
   }
   return 0;

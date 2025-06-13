@@ -1,6 +1,7 @@
 /*
 **  jstest-gtk - A graphical joystick tester
 **  Copyright (C) 2009 Ingo Ruhnke <grumbel@gmail.com>
+**  Copyright (C) 2025 Raphael Rosch <jstest-bugs@insaner.com>
 **
 **  This program is free software: you can redistribute it and/or modify
 **  it under the terms of the GNU General Public License as published by
@@ -26,11 +27,12 @@
 #include <linux/joystick.h>
 #include <libudev.h>
 #include "joystick_description.hpp"
+#include "joystick_config_files.hpp"
 
 class XMLReader;
 class XMLWriter;
 
-std::string get_js_id_from_filename(const std::string& filename_);
+std::string get_js_dev_id_from_filename(const std::string& filename_);
 
 class Joystick
 {
@@ -51,6 +53,7 @@ private:
   std::string orig_name;
   Glib::ustring name;
   std::string js_id;
+  std::string type;
   std::string vendor_id;
   std::string product_id;
   std::string usb_id;
@@ -66,6 +69,7 @@ public:
   Joystick(const std::string& filename, const std::string& js_id);
   ~Joystick();
 
+  JoystickConfig js_cfg;
   int get_fd() const { return fd; }
 
   void update();
@@ -74,6 +78,7 @@ public:
   std::string get_filename() const    { return filename; }
   Glib::ustring get_name() const      { return name; }
   std::string get_js_id() const       { return js_id; }
+  std::string get_js_type() const     { return type; }
   std::string get_vendor_id() const   { return vendor_id; }
   std::string get_product_id() const  { return product_id; }
   std::string get_usb_id() const      { return usb_id; }

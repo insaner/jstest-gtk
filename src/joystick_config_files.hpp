@@ -42,8 +42,6 @@ struct JoystickConfig {
     std::vector<std::string> axes;
     std::vector<std::string> buttons;
     int button_maxlen = 0;
-    std::vector<std::pair<std::string, std::string>> axes_pair;
-    std::vector<std::pair<std::string, std::string>> buttons_pair;
 };
 
 

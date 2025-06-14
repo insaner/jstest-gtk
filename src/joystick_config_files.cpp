@@ -84,12 +84,10 @@ JoystickConfig load_config(const std::string& filename) {
       if (name.rfind("axis_", 0) == 0)
       {
         config.axes.insert(config.axes.begin() + std::stoi(name.substr(underscore_pos + 1)), value);
-        config.axes_pair.emplace_back(name, value);
       }
       else if (name.rfind("button_", 0) == 0)
       {
         config.buttons.insert(config.buttons.begin() + std::stoi(name.substr(underscore_pos + 1)), value);
-        config.buttons_pair.emplace_back(name, value);
         if (value.size() > config.button_maxlen) config.button_maxlen = value.size();
       }
     }

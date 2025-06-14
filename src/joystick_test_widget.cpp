@@ -74,10 +74,12 @@ JoystickTestWidget::JoystickTestWidget(JoystickGui& gui, Joystick& joystick_, bo
   {
     std::ostringstream str;
     str << "Axis "  << i;
-    if (! joystick.js_cfg.axes[i].empty())
-    {
-      str << " [" << joystick.js_cfg.axes[i] << "] ";
-    }
+    try {
+      if (joystick.js_cfg.buttons.size() > 0  and ! joystick.js_cfg.axes.at(i).empty())
+      {
+        str << " [" << joystick.js_cfg.axes[i] << "] ";
+      }
+    } catch (const std::out_of_range& e) {}
     str << ": ";
     auto label = Gtk::manage(new Gtk::Label(str.str()));
     label->set_xalign(0.0);
@@ -109,10 +111,12 @@ JoystickTestWidget::JoystickTestWidget(JoystickGui& gui, Joystick& joystick_, bo
 
     std::ostringstream str;
     str << i;
-    if (! joystick.js_cfg.buttons[i].empty())
-    {
-      str << " - " << joystick.js_cfg.buttons[i];
-    }
+    try {
+      if (joystick.js_cfg.buttons.size() > 0  and ! joystick.js_cfg.buttons[i].empty())
+      {
+        str << " - " << joystick.js_cfg.buttons[i];
+      }
+    } catch (const std::out_of_range& e) {}
     auto* button = Gtk::manage(new ButtonWidget());
     auto label = Gtk::manage(new Gtk::Label(str.str()));
     label->set_xalign(0.0);

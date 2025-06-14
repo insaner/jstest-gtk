@@ -153,46 +153,23 @@ JoystickTestWidget::JoystickTestWidget(JoystickGui& gui, Joystick& joystick_, bo
 
   m_verbose and std::cout << "joystick.get_name(): " << joystick.get_name() << std::endl;
   m_verbose and std::cout << "joystick.get_usb_id(): " << joystick.get_usb_id() << std::endl;
+  m_verbose and std::cout << "joystick.get_js_type(): " << joystick.get_js_type() << std::endl;
   m_verbose and std::cout << "joystick.get_axis_count(): " << joystick.get_axis_count() << std::endl;
   
-  // Playstation 3 sixaxis Controller
-  if (joystick.get_usb_id() == "054c:0268")
-  {
-    m_verbose and std::cout << "ps3 sixaxis found" << std::endl;
-    stick_hbox.pack_start(stick1_widget, Gtk::PACK_EXPAND_PADDING);
-    stick_hbox.pack_start(stick2_widget, Gtk::PACK_EXPAND_PADDING);
-    stick_hbox.pack_start(left_trigger_widget, Gtk::PACK_EXPAND_PADDING);
-    stick_hbox.pack_start(right_trigger_widget, Gtk::PACK_EXPAND_PADDING);
-
-    axis_callbacks[0].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_x_axis));
-    axis_callbacks[1].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_y_axis));
-    axis_callbacks[3].connect(sigc::mem_fun(stick2_widget, &AxisWidget::set_x_axis));
-    axis_callbacks[4].connect(sigc::mem_fun(stick2_widget, &AxisWidget::set_y_axis));
-    axis_callbacks[2].connect(sigc::mem_fun(left_trigger_widget, &ThrottleWidget::set_pos));
-    axis_callbacks[5].connect(sigc::mem_fun(right_trigger_widget, &ThrottleWidget::set_pos));
-  }
-  // Playstation 2 dualshock 2 Controller
-  else if (joystick.get_usb_id() == "0810:0001" or joystick.get_usb_id() == "0810:0003")
-  {
-    m_verbose and std::cout << "ps2 dualshock 2 found" << std::endl;
-    stick_hbox.pack_start(stick1_widget, Gtk::PACK_EXPAND_PADDING);
-    stick_hbox.pack_start(stick2_widget, Gtk::PACK_EXPAND_PADDING);
-    stick_hbox.pack_start(left_trigger_widget, Gtk::PACK_EXPAND_PADDING);
-    stick_hbox.pack_start(right_trigger_widget, Gtk::PACK_EXPAND_PADDING);
-
-    axis_callbacks[0].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_x_axis));
-    axis_callbacks[1].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_y_axis));
-    axis_callbacks[3].connect(sigc::mem_fun(stick2_widget, &AxisWidget::set_x_axis)); // NOTE inversion of R analog stick axes
-    axis_callbacks[2].connect(sigc::mem_fun(stick2_widget, &AxisWidget::set_y_axis)); // NOTE inversion of R analog stick axes
-  }
+  if (joystick.get_js_type() == "ps4-dualshock4")
+    setup_dualshock4_equiv();
+  else if (joystick.get_js_type() == "ps3-sixaxis")
+    setup_sixaxis_equiv();
+  else if (joystick.get_js_type() == "ps2-dualshock2")
+    setup_dualshock2_equiv();
+  else if (joystick.get_js_type() == "xbox360")
+    setup_xbox360_equiv();
   else
   {
     switch(joystick.get_axis_count())
     {
     case 2: // Simple stick
-      stick_hbox.pack_start(stick1_widget, Gtk::PACK_EXPAND_PADDING);
-      axis_callbacks[0].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_x_axis));
-      axis_callbacks[1].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_y_axis));
+      setup_joystick_widgets(1, {0,1}, {});
       break;
 
     case 6: // Flightstick
@@ -214,52 +191,13 @@ JoystickTestWidget::JoystickTestWidget(JoystickGui& gui, Joystick& joystick_, bo
       axis_callbacks[5].connect(sigc::mem_fun(stick3_widget, &AxisWidget::set_y_axis));
       break;
     }
-      /*
-    // Dual Analog Gamepad
-
-      // FIXME: never reached as this is the same as Flightstick, no
-      // way to tell them apart from simple axis count
-      stick_hbox.pack_start(stick1_widget, Gtk::PACK_EXPAND_PADDING);
-      stick_hbox.pack_start(stick2_widget, Gtk::PACK_EXPAND_PADDING);
-      stick_hbox.pack_start(stick3_widget, Gtk::PACK_EXPAND_PADDING);
-
-      axis_callbacks[0].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_x_axis));
-      axis_callbacks[1].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_y_axis));
-      axis_callbacks[2].connect(sigc::mem_fun(stick2_widget, &AxisWidget::set_x_axis));
-      axis_callbacks[3].connect(sigc::mem_fun(stick2_widget, &AxisWidget::set_y_axis));
-      axis_callbacks[4].connect(sigc::mem_fun(stick3_widget, &AxisWidget::set_x_axis));
-      axis_callbacks[5].connect(sigc::mem_fun(stick3_widget, &AxisWidget::set_y_axis));
-      */
-
-    case 8: // Dual Analog Gamepad + Analog Trigger
-      stick_hbox.pack_start(stick1_widget, Gtk::PACK_EXPAND_PADDING);
-      stick_hbox.pack_start(stick2_widget, Gtk::PACK_EXPAND_PADDING);
-      stick_hbox.pack_start(stick3_widget, Gtk::PACK_EXPAND_PADDING);
-      stick_hbox.pack_start(left_trigger_widget, Gtk::PACK_EXPAND_PADDING);
-      stick_hbox.pack_start(right_trigger_widget, Gtk::PACK_EXPAND_PADDING);
-
-      axis_callbacks[0].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_x_axis));
-      axis_callbacks[1].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_y_axis));
-      axis_callbacks[2].connect(sigc::mem_fun(stick2_widget, &AxisWidget::set_x_axis));
-      axis_callbacks[3].connect(sigc::mem_fun(stick2_widget, &AxisWidget::set_y_axis));
-      axis_callbacks[6].connect(sigc::mem_fun(stick3_widget, &AxisWidget::set_x_axis));
-      axis_callbacks[7].connect(sigc::mem_fun(stick3_widget, &AxisWidget::set_y_axis));
-      axis_callbacks[4].connect(sigc::mem_fun(left_trigger_widget, &ThrottleWidget::set_pos));
-      axis_callbacks[5].connect(sigc::mem_fun(right_trigger_widget, &ThrottleWidget::set_pos));
-      break;
-
 
     case 7: // Dual Analog Gamepad DragonRise Inc. Generic USB Joystick
-      stick_hbox.pack_start(stick1_widget, Gtk::PACK_EXPAND_PADDING);
-      stick_hbox.pack_start(stick2_widget, Gtk::PACK_EXPAND_PADDING);
-      stick_hbox.pack_start(stick3_widget, Gtk::PACK_EXPAND_PADDING);
+      setup_joystick_widgets(3, {0,1,3,4,5,6}, {});
+      break;
 
-      axis_callbacks[0].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_x_axis));
-      axis_callbacks[1].connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_y_axis));
-      axis_callbacks[3].connect(sigc::mem_fun(stick2_widget, &AxisWidget::set_x_axis));
-      axis_callbacks[4].connect(sigc::mem_fun(stick2_widget, &AxisWidget::set_y_axis));
-      axis_callbacks[5].connect(sigc::mem_fun(stick3_widget, &AxisWidget::set_x_axis));
-      axis_callbacks[6].connect(sigc::mem_fun(stick3_widget, &AxisWidget::set_y_axis));
+    case 8: // Dual Analog Gamepad + Analog Trigger
+      setup_joystick_widgets(3, {0,1,2,3,6,7}, {4,5});
       break;
 
     default:
@@ -286,6 +224,74 @@ JoystickTestWidget::JoystickTestWidget(JoystickGui& gui, Joystick& joystick_, bo
 
   close_button.grab_focus();
 }
+
+void
+JoystickTestWidget::setup_joystick_widgets(const u_int sticks, const std::vector<u_int>& axes, const std::vector<u_int>& triggers)
+{ // eg: setup_joystick_widgets(2, {0,1,3,4}, {}); => 2 sticks, with axes 0,1 and 3,4, and no triggers
+  try {
+    if (sticks >= 1) {
+      stick_hbox.pack_start(stick1_widget, Gtk::PACK_EXPAND_PADDING);
+      axis_callbacks.at(axes.at(0)).connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_x_axis));
+      axis_callbacks.at(axes.at(1)).connect(sigc::mem_fun(stick1_widget, &AxisWidget::set_y_axis));
+    }
+    if (sticks >= 2) {
+      stick_hbox.pack_start(stick2_widget, Gtk::PACK_EXPAND_PADDING);
+      axis_callbacks.at(axes.at(2)).connect(sigc::mem_fun(stick2_widget, &AxisWidget::set_x_axis));
+      axis_callbacks.at(axes.at(3)).connect(sigc::mem_fun(stick2_widget, &AxisWidget::set_y_axis));
+    }
+    if (sticks >= 3) {
+      stick_hbox.pack_start(stick3_widget, Gtk::PACK_EXPAND_PADDING);
+      axis_callbacks.at(axes.at(4)).connect(sigc::mem_fun(stick3_widget, &AxisWidget::set_x_axis));
+      axis_callbacks.at(axes.at(5)).connect(sigc::mem_fun(stick3_widget, &AxisWidget::set_y_axis));
+    }
+  }
+  catch (const std::out_of_range& e) {
+    std::cout << "joystick configuration error. Some axis data missing or out of range." << std::endl;
+    m_verbose and std::cout << e.what() << std::endl;
+    label.set_label(label.get_label() + "\n<span foreground='red'>ERROR: axis config data</span>");
+  }
+    
+  try {
+    if (triggers.size() >= 1) {
+      stick_hbox.pack_start(left_trigger_widget, Gtk::PACK_EXPAND_PADDING);
+      axis_callbacks.at(triggers.at(0)).connect(sigc::mem_fun(left_trigger_widget, &ThrottleWidget::set_pos));
+    }
+    if (triggers.size() >= 2) {
+      stick_hbox.pack_start(right_trigger_widget, Gtk::PACK_EXPAND_PADDING);
+      axis_callbacks.at(triggers.at(1)).connect(sigc::mem_fun(right_trigger_widget, &ThrottleWidget::set_pos));
+    }
+  }
+  catch (const std::out_of_range& e) {
+    std::cout << "joystick configuration error. Some trigger data missing or out of range." << std::endl;
+    m_verbose and std::cout << e.what() << std::endl;
+    label.set_label(label.get_label() + "\n<span foreground='red'>ERROR: trigger config data</span>");
+  }
+}
+  
+void
+JoystickTestWidget::setup_sixaxis_equiv()
+{
+  setup_joystick_widgets(2, {0,1,3,4}, {2,5});
+}
+
+void
+JoystickTestWidget::setup_dualshock4_equiv()
+{
+  setup_joystick_widgets(3, {0,1,3,4,6,7}, {2,5});
+}
+
+void
+JoystickTestWidget::setup_dualshock2_equiv()
+{
+  setup_joystick_widgets(2, {0,1,3,2}, {});
+}
+
+void
+JoystickTestWidget::setup_xbox360_equiv()
+{
+  setup_joystick_widgets(3, {0,1,3,4,6,7}, {2,5});
+}
+
 
 void
 JoystickTestWidget::axis_move(int number, int value)

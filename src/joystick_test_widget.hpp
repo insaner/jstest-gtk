@@ -95,6 +95,12 @@ public:
 private:
   JoystickTestWidget(const JoystickTestWidget&);
   JoystickTestWidget& operator=(const JoystickTestWidget&);
+  void setup_joystick_widgets(const u_int sticks, const std::vector<u_int>& axes, const std::vector<u_int>& triggers);
+  void setup_sixaxis_equiv();
+  void setup_dualshock2_equiv();
+  void setup_dualshock4_equiv();
+  void setup_xbox360_equiv();
+  
 };
 
 #endif

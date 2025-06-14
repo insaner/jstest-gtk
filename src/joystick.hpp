@@ -53,7 +53,7 @@ private:
   std::string orig_name;
   Glib::ustring name;
   std::string js_id;
-  std::string type;
+  std::string js_type;
   std::string vendor_id;
   std::string product_id;
   std::string usb_id;
@@ -78,7 +78,7 @@ public:
   std::string get_filename() const    { return filename; }
   Glib::ustring get_name() const      { return name; }
   std::string get_js_id() const       { return js_id; }
-  std::string get_js_type() const     { return type; }
+  std::string get_js_type() const     { return js_type; }
   std::string get_vendor_id() const   { return vendor_id; }
   std::string get_product_id() const  { return product_id; }
   std::string get_usb_id() const      { return usb_id; }

@@ -128,13 +128,7 @@ JoystickListWidget::on_refresh_button()
     
     icon_filename = js_cfg.icon_filename;
     
-    if (! js_cfg.icon_filename_is_good) icon_filename = "generic.png";
-    
-    /*
-    if(name == "Sony PLAYSTATION(R)3 Controller") icon_filename = "PS3.png";
-    else if(name.find("X-Box") != Glib::ustring::npos) icon_filename = "xbox360_small.png";
-    else icon_filename = "generic.png";
-    */
+    if (! js_cfg.icon_filename_is_good) icon_filename = "generic.png"; // NOTE: you can set the icon_filename in a config file for the controller
 
     (*it)[DeviceListColumns::instance().icon] = Gdk::Pixbuf::create_from_file(Main::current()->get_data_directory() + icon_filename);
     (*it)[DeviceListColumns::instance().path] = i->filename;

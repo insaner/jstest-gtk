@@ -109,22 +109,29 @@ Joystick::Joystick(const std::string& filename_, const std::string& js_id_)
         
         // set joystick type:
         
-        // Playstation 3 sixaxis class
-        if (get_usb_id() == "054c:0268")
+        // FIXME -- might make sense to also have a config table where users can add their own types, and not have to recompile
+        
+        // Playstation 4 dualshock 4 Controller
+        if (get_usb_id() == "054c:09cc")
         {
-          type = "ps3-sixaxis";
+          js_type = "ps4-dualshock4";
+        }
+        // Playstation 3 sixaxis class
+        else if (get_usb_id() == "054c:0268")
+        {
+          js_type = "ps3-sixaxis";
         }
         // Playstation 2 dualshock 2 Controller class
         else if (get_usb_id() == "0810:0001"
               or get_usb_id() == "0810:0003")
         {
-          type = "ps2-dualshock2";
+          js_type = "ps2-dualshock2";
         }
         // Xbox360 Controller class
         else if (get_usb_id() == "045e:028E"
               or get_usb_id() == "0e6f:0213")
         {
-          type = "xbox360";
+          js_type = "xbox360";
         }
       }
       udev_unref(udev);

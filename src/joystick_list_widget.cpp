@@ -97,6 +97,12 @@ JoystickListWidget::JoystickListWidget() :
   m_close_button.signal_clicked().connect([this]{ hide(); });
 
   m_close_button.grab_focus();
+  
+  udev_monitor.reset(new UdevMonitor());
+  udev_monitor->signal_joystick_event.connect([this](const std::string& action, const std::string& devnode) {
+    m_verbose and std::cout << "Joystick " << action << ": " << devnode << std::endl;
+    on_refresh_button();  // ✅ Call the member function
+  });
 
   on_refresh_button();
 }

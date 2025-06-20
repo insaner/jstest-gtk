@@ -28,6 +28,8 @@
 #include <gtkmm/liststore.h>
 #include <gtkmm/window.h>
 
+#include "udev_monitor.hpp"
+
 class JoystickListWidget : public Gtk::Window
 {
 private:
@@ -42,6 +44,8 @@ private:
   Gtk::Button m_close_button;
 
   Glib::RefPtr<Gtk::ListStore> device_list;
+  
+  std::unique_ptr<UdevMonitor> udev_monitor;
 
 public:
   JoystickListWidget();
@@ -49,7 +53,7 @@ public:
   void on_refresh_button();
   void on_properties_button();
   void on_row_activated(const Gtk::TreeModel::Path& path, Gtk::TreeViewColumn* column);
-
+  
 private:
   JoystickListWidget(const JoystickListWidget&);
   JoystickListWidget& operator=(const JoystickListWidget&);

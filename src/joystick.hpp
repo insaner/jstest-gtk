@@ -60,6 +60,10 @@ private:
   int axis_count;
   int button_count;
 
+  void connect_js();
+  int get_new_joystick_fd();
+  std::pair<std::string, std::string> get_usb_id_pair_from_udev();
+
   std::vector<int> axis_state;
   std::vector<CalibrationData> orig_calibration_data;
 
@@ -74,6 +78,7 @@ public:
 
   void update();
   bool on_in(Glib::IOCondition cond);
+  bool reconnected();
 
   std::string get_filename() const    { return filename; }
   Glib::ustring get_name() const      { return name; }
@@ -84,6 +89,8 @@ public:
   std::string get_usb_id() const      { return usb_id; }
   int get_axis_count() const          { return axis_count; }
   int get_button_count() const        { return button_count; }
+
+  std::string get_js_type_from_usb_id(const std::string& usb_id);
 
   sigc::signal<void, int, int>  axis_move;
   sigc::signal<void, int, bool> button_move;

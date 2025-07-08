@@ -37,6 +37,8 @@
 #include "rudder_widget.hpp"
 #include "axis_widget.hpp"
 
+#include "udev_monitor.hpp"
+
 class Joystick;
 class JoystickGui;
 class ButtonWidget;
@@ -48,9 +50,12 @@ private:
   Joystick& joystick;
   bool m_simple_ui;
 
+  bool connected;
+
   Gtk::VBox m_vbox;
   Gtk::Alignment alignment;
   Gtk::Label label;
+  Glib::ustring label_base;
 
   Gtk::Frame axis_frame;
   Gtk::VBox  axis_vbox;
@@ -83,6 +88,8 @@ private:
 
   std::vector<sigc::signal<void, double> > axis_callbacks;
 
+  std::unique_ptr<UdevMonitor> udev_monitor;
+
 public:
   JoystickTestWidget(JoystickGui& gui, Joystick& joystick, bool simple_ui);
 
@@ -100,7 +107,8 @@ private:
   void setup_dualshock2_equiv();
   void setup_dualshock4_equiv();
   void setup_xbox360_equiv();
-  
+
+  void on_udev_js_event(const std::string& action, const std::string& devnode);
 };
 
 #endif

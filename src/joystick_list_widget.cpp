@@ -101,7 +101,7 @@ JoystickListWidget::JoystickListWidget() :
   udev_monitor.reset(new UdevMonitor());
   udev_monitor->signal_joystick_event.connect([this](const std::string& action, const std::string& devnode) {
     m_verbose and std::cout << "Joystick " << action << ": " << devnode << std::endl;
-    on_refresh_button();  // ✅ Call the member function
+    on_refresh_button();
   });
 
   on_refresh_button();

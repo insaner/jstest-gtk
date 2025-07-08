@@ -58,8 +58,8 @@ JoystickTestWidget::JoystickTestWidget(JoystickGui& gui, Joystick& joystick_, bo
 {
   set_title(joystick_.get_name());
   set_icon_from_file(Main::current()->get_data_directory() + "generic.png");
+  label_base = label.get_label();
   label.set_use_markup(true);
-
   label.set_selectable(true);
 
   axis_frame.set_border_width(5);
@@ -70,6 +70,7 @@ JoystickTestWidget::JoystickTestWidget(JoystickGui& gui, Joystick& joystick_, bo
   button_table.set_spacings(8);
   buttonbox.set_border_width(5);
 
+  connected = true;
   for(int i = 0; i < joystick.get_axis_count(); ++i)
   {
     std::ostringstream str;
@@ -222,6 +223,9 @@ JoystickTestWidget::JoystickTestWidget(JoystickGui& gui, Joystick& joystick_, bo
   mapping_button.signal_clicked().connect(sigc::mem_fun(this, &JoystickTestWidget::on_mapping));
   close_button.signal_clicked().connect([this]{ hide(); });
 
+  udev_monitor.reset(new UdevMonitor());
+  udev_monitor->signal_joystick_event.connect(sigc::mem_fun(this, &JoystickTestWidget::on_udev_js_event));
+
   close_button.grab_focus();
 }
 
@@ -248,7 +252,8 @@ JoystickTestWidget::setup_joystick_widgets(const u_int sticks, const std::vector
   catch (const std::out_of_range& e) {
     std::cout << "joystick configuration error. Some axis data missing or out of range." << std::endl;
     m_verbose and std::cout << e.what() << std::endl;
-    label.set_label(label.get_label() + "\n<span foreground='red'>ERROR: axis config data</span>");
+    label_base = label_base + "\n<span foreground='red'>ERROR: axis config data</span>";
+    label.set_label(label_base);
   }
     
   try {
@@ -264,7 +269,8 @@ JoystickTestWidget::setup_joystick_widgets(const u_int sticks, const std::vector
   catch (const std::out_of_range& e) {
     std::cout << "joystick configuration error. Some trigger data missing or out of range." << std::endl;
     m_verbose and std::cout << e.what() << std::endl;
-    label.set_label(label.get_label() + "\n<span foreground='red'>ERROR: trigger config data</span>");
+    label_base = label_base + "\n<span foreground='red'>ERROR: trigger config data</span>";
+    label.set_label(label_base);
   }
 }
   
@@ -316,13 +322,36 @@ JoystickTestWidget::button_move(int number, bool value)
 void
 JoystickTestWidget::on_calibrate()
 {
-  m_gui.show_calibration_dialog();
+  if (connected) m_gui.show_calibration_dialog();
 }
 
 void
 JoystickTestWidget::on_mapping()
 {
-  m_gui.show_mapping_dialog();
+  if (connected) m_gui.show_mapping_dialog();
+}
+
+void
+JoystickTestWidget::on_udev_js_event(const std::string& action, const std::string& devnode)
+{
+  m_verbose and  std::cout << "joystick_test_widget " << action << ": " << devnode << std::endl;
+  if (devnode == joystick.get_filename()) {
+    if (action == "remove") {
+      connected = false;
+      label.set_label(label_base + "\n<span foreground='red'>DISCONNECTED</span>");
+      m_verbose and std::cout << "joystick disconnected: "  <<  joystick.get_name() << std::endl;
+    }
+    else if (action == "add") {
+      if (joystick.reconnected()) {
+        connected = true;
+        m_verbose and std::cout << "joystick re-connected: "  << joystick.get_name()  << std::endl;
+        label.set_label(label_base);
+      //label.set_label(label_base + "\n<span foreground='green'>reconnected</span>");
+      }
+    }
+    calibration_button.set_sensitive(connected);
+    mapping_button.set_sensitive(connected);
+  }
 }
 
 /* EOF */

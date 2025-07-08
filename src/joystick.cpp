@@ -36,6 +36,7 @@
 
 #include "evdev_helper.hpp"
 #include "joystick.hpp"
+#include "main.hpp"
 
 std::string get_js_dev_id_from_filename(const std::string& filename)
 {
@@ -51,14 +52,8 @@ Joystick::Joystick(const std::string& filename_, const std::string& js_id_)
   : filename(filename_),
     js_id(js_id_)
 {
-  if ((fd = open(filename.c_str(), O_RDONLY)) < 0)
-  {
-    std::ostringstream str;
-    str << filename << ": " << strerror(errno);
-    throw std::runtime_error(str.str());
-  }
-  else
-  {
+  try {
+    fd = get_new_joystick_fd(); // throws error
     // ok
     uint8_t num_axis   = 0;
     uint8_t num_button = 0;
@@ -87,72 +82,124 @@ Joystick::Joystick(const std::string& filename_, const std::string& js_id_)
 
     axis_state.resize(axis_count);
     
-    struct udev *udev = udev_new();
-    if (udev) {
-      struct udev_device *dev = udev_device_new_from_subsystem_sysname(udev, "input", js_id.c_str());
-      dev = udev_device_get_parent_with_subsystem_devtype(dev, "usb", "usb_device");
-      if (!dev)
-      {
-        std::cout << filename.c_str() << std::endl;
-        std::cout << "udev: Unable to find parent USB device" << std::endl;
-        //return false;
-      }
-      else
-      {
-        vendor_id = udev_device_get_sysattr_value(dev, "idVendor");
-        product_id = udev_device_get_sysattr_value(dev, "idProduct");
-        usb_id = vendor_id + ":" + product_id;
-        // std::cout << js_id.c_str() << " = " << vendor_id << ":" << product_id << std::endl;
-        udev_device_unref(dev);
-        
-        js_cfg = get_config_for_usb_id(usb_id);
-        
-        // set joystick type:
-        
-        // FIXME -- might make sense to also have a config table where users can add their own types, and not have to recompile
-        
-        // Playstation 4 dualshock 4 Controller
-        if (get_usb_id() == "054c:09cc")
-        {
-          js_type = "ps4-dualshock4";
-        }
-        // Playstation 3 sixaxis class
-        else if (get_usb_id() == "054c:0268")
-        {
-          js_type = "ps3-sixaxis";
-        }
-        // Playstation 2 dualshock 2 Controller class
-        else if (get_usb_id() == "0810:0001"
-              or get_usb_id() == "0810:0003")
-        {
-          js_type = "ps2-dualshock2";
-        }
-        // Xbox360 Controller class
-        else if (get_usb_id() == "045e:028E"
-              or get_usb_id() == "0e6f:0213")
-        {
-          js_type = "xbox360";
-        }
-      }
-      udev_unref(udev);
+    auto tmp_usb_id_pair = get_usb_id_pair_from_udev();
+    if (!tmp_usb_id_pair.first.empty() and !tmp_usb_id_pair.second.empty()) {
+      vendor_id = tmp_usb_id_pair.first;
+      product_id = tmp_usb_id_pair.second;
+      usb_id = vendor_id + ":" + product_id;
+      js_cfg = get_config_for_usb_id(usb_id);
+      js_type = get_js_type_from_usb_id(usb_id);
     }
-    else
-    {
-        std::cout << "udev: Cannot create udev" << std::endl;
-        //return false;
-    }
+    connect_js();
+    orig_calibration_data = get_calibration();
+  } catch(std::runtime_error& err) {
+    std::cout << err.what() << std::endl;
   }
-
-  orig_calibration_data = get_calibration();
-
-  connection = Glib::signal_io().connect(sigc::mem_fun(this, &Joystick::on_in), fd,
-                                         Glib::IO_IN | Glib::IO_HUP | Glib::IO_ERR);
 }
 
 Joystick::~Joystick()
 {
   connection.disconnect();
   close(fd);
+}
+
+int
+Joystick::get_new_joystick_fd()
+{
+  int tmp_fd;
+  if ((tmp_fd = open(filename.c_str(), O_RDONLY)) < 0)
+  {
+    std::ostringstream str;
+    str << filename << ": " << strerror(errno);
+    throw std::runtime_error(str.str());
+  }
+  else
+  {
+  return tmp_fd;
+  }
+
+}
+
+void
+Joystick::connect_js()
+{
+  connection = Glib::signal_io().connect(sigc::mem_fun(this, &Joystick::on_in), fd,
+                                        Glib::IO_IN | Glib::IO_HUP | Glib::IO_ERR);
+}
+
+bool
+Joystick::reconnected()
+{
+  m_verbose and std::cout << "attempting joystick reconnect... " << std::endl;
+
+  try {
+    int tmp_fd = get_new_joystick_fd();
+
+    char name_c_str[1024];
+    if (ioctl(tmp_fd, JSIOCGNAME(sizeof(name_c_str)), name_c_str) < 0)
+    {
+      m_verbose and std::cout << "could not get name from fd "  << std::endl;
+      return false;
+    }
+    if (orig_name != name_c_str)
+    {
+      m_verbose and std::cout << "name mismatch"  << std::endl;
+      return false;
+    }
+    auto tmp_usb_id_pair = get_usb_id_pair_from_udev();
+    std::string tmp_usb_id = tmp_usb_id_pair.first + ":" + tmp_usb_id_pair.second;
+    if (tmp_usb_id != usb_id)
+    {
+      m_verbose and std::cout << "usb_id mismatch"  << std::endl;
+      return false;
+    }
+    std::string tmp_js_type = get_js_type_from_usb_id(tmp_usb_id);
+    if (tmp_js_type != js_type)
+    {
+      m_verbose and std::cout << "js_type mismatch"  << std::endl;
+      return false;
+    }
+    fd = tmp_fd;
+    connect_js();
+  } catch(std::runtime_error& err) {
+    std::cout << err.what() << std::endl;
+    return false;
+  }
+
+  return true;
+}
+
+
+std::pair<std::string, std::string>
+Joystick::get_usb_id_pair_from_udev()
+{
+    struct udev *udev = udev_new();
+    if (udev) {
+      struct udev_device *input_dev = udev_device_new_from_subsystem_sysname(udev, "input", js_id.c_str());
+      struct udev_device *dev = udev_device_get_parent_with_subsystem_devtype(input_dev, "usb", "usb_device");
+      if (!dev)
+      {
+        std::cout << filename.c_str() << std::endl;
+        std::cout << "udev: Unable to find parent USB device" << std::endl;
+      }
+      else
+      {
+        std::string tmp_vendor_id;
+        std::string tmp_product_id;
+        tmp_vendor_id = udev_device_get_sysattr_value(dev, "idVendor");
+        tmp_product_id = udev_device_get_sysattr_value(dev, "idProduct");
+        // usb_id = vendor_id + ":" + product_id;
+        udev_device_unref(input_dev);
+        udev_unref(udev);
+        return {tmp_vendor_id, tmp_product_id};
+      }
+      udev_unref(udev);
+    }
+    else
+    {
+      std::cout << "udev: Cannot create udev" << std::endl;
+    }
+    return {};
 }
 
 bool
@@ -171,7 +218,7 @@ Joystick::on_in(Glib::IOCondition cond)
 
   if (cond & Glib::IO_ERR)
   {
-    std::cout << filename << ": error ocured while reading from joystick" << std::endl;
+    std::cout << filename << ": error while reading from joystick" << std::endl;
     connection.disconnect();
   }
 
@@ -517,6 +564,37 @@ Joystick::get_evdev() const
   }
 
   throw std::runtime_error("couldn't find evdev for " + filename);
+}
+
+std::string
+Joystick::get_js_type_from_usb_id(const std::string& usb_id)
+{
+  // TODO -- might make sense to also have a config table where users can add their own types, and not have to recompile
+  std::string tmp_js_type;
+
+  // Playstation 4 dualshock 4 Controller class
+  if (usb_id == "054c:09cc")
+  {
+    tmp_js_type = "ps4-dualshock4";
+  }
+  // Playstation 3 sixaxis class
+  else if (usb_id == "054c:0268")
+  {
+    tmp_js_type = "ps3-sixaxis";
+  }
+  // Playstation 2 dualshock 2 Controller class
+  else if (usb_id == "0810:0001"
+        or usb_id == "0810:0003")
+  {
+    tmp_js_type = "ps2-dualshock2";
+  }
+  // Xbox360 Controller class
+  else if (usb_id == "045e:028E"
+        or usb_id == "0e6f:0213")
+  {
+    tmp_js_type = "xbox360";
+  }
+  return tmp_js_type;
 }
 
 

@@ -88,7 +88,8 @@ Joystick::Joystick(const std::string& filename_, const std::string& js_id_)
       product_id = tmp_usb_id_pair.second;
       usb_id = vendor_id + ":" + product_id;
       js_cfg = get_config_for_usb_id(usb_id);
-      js_type = get_js_type_from_usb_id(usb_id);
+      // js_type = get_js_type_from_usb_id(usb_id);
+      js_type = get_js_type_from_config(js_cfg);
     }
     connect_js();
     orig_calibration_data = get_calibration();
@@ -128,7 +129,7 @@ Joystick::connect_js()
 }
 
 bool
-Joystick::reconnected()
+Joystick::reconnected()   // TODO: jsX devnum needs to be same after reconnecting, or below won't work (eg, reconnecting in different order) 
 {
   m_verbose and std::cout << "attempting joystick reconnect... " << std::endl;
 
@@ -153,7 +154,8 @@ Joystick::reconnected()
       m_verbose and std::cout << "usb_id mismatch"  << std::endl;
       return false;
     }
-    std::string tmp_js_type = get_js_type_from_usb_id(tmp_usb_id);
+    // std::string tmp_js_type = get_js_type_from_usb_id(tmp_usb_id);
+    std::string tmp_js_type = get_js_type_from_config(js_cfg);
     if (tmp_js_type != js_type)
     {
       m_verbose and std::cout << "js_type mismatch"  << std::endl;
@@ -567,35 +569,32 @@ Joystick::get_evdev() const
 }
 
 std::string
+Joystick::get_js_type_from_config(const JoystickConfig& js_cfg)
+{
+  return js_cfg.js_type;
+}
+
+/*
+  // Only use if you want to hardcode usb_id's to gamepad types (instead of using config files):
+  
+std::string
 Joystick::get_js_type_from_usb_id(const std::string& usb_id)
 {
-  // TODO -- might make sense to also have a config table where users can add their own types, and not have to recompile
   std::string tmp_js_type;
 
-  // Playstation 4 dualshock 4 Controller class
-  if (usb_id == "054c:09cc")
+  // eg:
+  if (usb_id == "054c:0000")
   {
-    tmp_js_type = "ps4-dualshock4";
+    tmp_js_type = "gamepad-type1";
   }
-  // Playstation 3 sixaxis class
-  else if (usb_id == "054c:0268")
+  else if (usb_id == "045e:1111"
+        or usb_id == "045e:2222")
   {
-    tmp_js_type = "ps3-sixaxis";
-  }
-  // Playstation 2 dualshock 2 Controller class
-  else if (usb_id == "0810:0001"
-        or usb_id == "0810:0003")
-  {
-    tmp_js_type = "ps2-dualshock2";
-  }
-  // Xbox360 Controller class
-  else if (usb_id == "045e:028E"
-        or usb_id == "0e6f:0213")
-  {
-    tmp_js_type = "xbox360";
+    tmp_js_type = "gamepad-type2";
   }
   return tmp_js_type;
 }
+*/
 
 
 #ifdef __TEST__

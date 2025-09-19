@@ -38,6 +38,7 @@ struct JoystickConfig {
     std::unordered_map<std::string, std::string> values;
     std::vector<std::string> usb_ids;
     std::string icon_filename;
+    std::string js_type;
     bool icon_filename_is_good = false;
     std::vector<std::string> axes;
     std::vector<std::string> buttons;

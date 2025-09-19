@@ -90,7 +90,10 @@ public:
   int get_axis_count() const          { return axis_count; }
   int get_button_count() const        { return button_count; }
 
-  std::string get_js_type_from_usb_id(const std::string& usb_id);
+  std::string get_js_type_from_config(const JoystickConfig& js_cfg);
+  /*
+  std::string get_js_type_from_usb_id(const std::string& usb_id);  // Only use if you want to hardcode usb_id's to gamepad types
+  */
 
   sigc::signal<void, int, int>  axis_move;
   sigc::signal<void, int, bool> button_move;

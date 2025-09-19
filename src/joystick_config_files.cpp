@@ -71,6 +71,11 @@ JoystickConfig load_config(const std::string& filename) {
       config.icon_filename_is_good = file_is_good(Main::current()->get_data_directory() + value);
     }
 
+    if (name == "js_type")
+    {
+      config.js_type = value;
+    }
+
     if (name == "usb_id")
     {
       m_verbose and std::cout << "   registering usb_id: " << value << std::endl;

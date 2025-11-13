@@ -203,7 +203,7 @@ JoystickTestWidget::JoystickTestWidget(JoystickGui& gui, Joystick& joystick_, bo
       break;
 
     default:
-      std::cout << "Warning: unknown joystick, not displaying graphical representation." << std::endl;
+      std::cout << "Graphical representation for this joystick has not been configured yet." << std::endl;
     }
   }
 

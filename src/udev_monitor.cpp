@@ -28,10 +28,24 @@ UdevMonitor::UdevMonitor()
   if (!udev) throw std::runtime_error("udev_new() failed");
 
   monitor = udev_monitor_new_from_netlink(udev, "udev");
-  udev_monitor_filter_add_match_subsystem_devtype(monitor, "input", nullptr);
-  udev_monitor_enable_receiving(monitor);
+  if (!monitor) throw std::runtime_error("udev_monitor_new_from_netlink() failed");
+  if (udev_monitor_filter_add_match_subsystem_devtype(monitor, "input", nullptr) < 0) {
+    udev_monitor_unref(monitor);
+    udev_unref(udev);
+    throw std::runtime_error("Failed to add subsystem filter");
+  }
+  if (udev_monitor_enable_receiving(monitor) < 0) {
+    udev_monitor_unref(monitor);
+    udev_unref(udev);
+    throw std::runtime_error("udev monitor enable receiving failed");
+  }
 
   fd = udev_monitor_get_fd(monitor);
+  if (fd < 0) {
+      udev_monitor_unref(monitor);
+      udev_unref(udev);
+      throw std::runtime_error("Invalid file descriptor from udev monitor");
+    }
 
   auto channel = Glib::IOChannel::create_from_fd(fd);
   channel->set_encoding();  // Binary
@@ -45,8 +59,17 @@ UdevMonitor::UdevMonitor()
 
 UdevMonitor::~UdevMonitor()
 {
-  udev_monitor_unref(monitor);
-  udev_unref(udev);
+  if (watch) {
+    watch.disconnect();  // disconnect GLib watch
+  }
+  if (monitor) {
+    udev_monitor_unref(monitor);
+    monitor = nullptr;
+  }
+  if (udev) {
+    udev_unref(udev);
+    udev = nullptr;
+  }
 }
 
 bool UdevMonitor::on_io_event(Glib::IOCondition)
